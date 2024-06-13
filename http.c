@@ -18,7 +18,7 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strstr( uri, "//" );
 
-  if ( !pos )
+  if (!pos)
   {
     return -1;
   }
@@ -27,7 +27,7 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strchr( *host, '/' );
 
-  if ( !pos )
+  if (!pos)
   {
     *path = NULL;
   }
@@ -41,12 +41,20 @@ int parse_url( char *uri, char **host, char **path )
 }
 
 
-int main() {
-  char *url = (char *)malloc(256);
-  url = "http://www.example.com/testing/a.txt";
+int main(int argc, char **argv) {
+  if (argc < 2) {
+    fprintf(stderr, "Usage : http_client <url>\n");
+    exit(1);
+  }
+
   char *host, *path;
-  parse_url(url, &host, &path);
-  printf("Parsed host - %s\n", host);
-  printf("Parsed path - %s\n", path);
+  host = NULL;
+  path = NULL;
+  if (parse_url(argv[1], &host, &path) != -1) {
+    printf("Parsed host - %s\n", host);
+    printf("Parsed path - %s\n", path);
+  } else {
+    fprintf(stderr, "Error : Malformed URL\n");
+  }
   return 0;
 }
