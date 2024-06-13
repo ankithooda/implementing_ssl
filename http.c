@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 
 /*
   Parses HTTP urls of the form - http://www.example.com/example.txt
@@ -42,6 +45,7 @@ int parse_url( char *uri, char **host, char **path )
 
 
 int main(int argc, char **argv) {
+  const char *service = "http";
   if (argc < 2) {
     fprintf(stderr, "Usage : http_client <url>\n");
     exit(1);
@@ -55,6 +59,10 @@ int main(int argc, char **argv) {
     printf("Parsed path - %s\n", path);
   } else {
     fprintf(stderr, "Error : Malformed URL\n");
+    exit(2);
   }
+
+  struct hostent *hostname;
+  hostname = getaddrinfo(host, 80,const struct addrinfo* __req,struct addrinfo** __pai)
   return 0;
 }
