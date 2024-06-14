@@ -83,17 +83,20 @@ int parse_url( char *uri, char **host, char **path )
 int http_get(int sockfd, char *host, char *path) {
   char message_buffer[BUFFER_SIZE];
 
-  snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP 1.1\r\n", path);
+  snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP/1.1\r\n", path);
+  fprintf(stdout, "%s", message_buffer);
   if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
     return -1;
   }
 
   snprintf(message_buffer, BUFFER_SIZE, "Host: %s\r\n", host);
+  fprintf(stdout, "%s", message_buffer);
   if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
     return -1;
   }
 
-  snprintf(message_buffer, BUFFER_SIZE, "Connection: Close\r\n\r\n");
+  snprintf(message_buffer, BUFFER_SIZE, "Connection: close\r\n\r\n");
+  fprintf(stdout, "%s", message_buffer);
   if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
     return -1;
   }
