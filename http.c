@@ -6,6 +6,9 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
+#include <fcntl.h>
+#include <unistd.h>
 //#include <netinet/in.h>
 
 
@@ -109,6 +112,38 @@ int main(int argc, char **argv) {
   }
 
   print_all_addr(resolved_host);
+
+  int sockfd = 0;
+  bool connected = false;
+
+  for (struct addrinfo *cur_addr = resolved_host; cur_addr != NULL && !connected; cur_addr = cur_addr->ai_next) {
+
+    sockfd = socket(cur_addr->ai_family, cur_addr->ai_socktype, cur_addr->ai_protocol);
+
+    if (sockfd == -1) {
+      fprintf(stderr, "Warning : Could not create socket - %s\n", strerror(errno));
+      continue;
+    }
+
+    if (connect(sockfd, cur_addr->ai_addr, cur_addr->ai_addrlen) == -1) {
+      fprintf(stderr, "Warning : Could not connect to the host - %s\n", strerror(errno));
+      // Before continuing to the next address.
+      // Close the socket.
+      close(sockfd);
+      continue;
+    }
+    // Flag to store whether we have successfully connected
+    // to atleast one address.
+    connected = true;
+  }
+
+  if ( connected == false) {
+    fprintf(stderr, "Error : Could not connect to the host\n");
+    exit(4);
+  }
+
+  // Free addrinfo struct
   freeaddrinfo(resolved_host);
+
   return 0;
 }
