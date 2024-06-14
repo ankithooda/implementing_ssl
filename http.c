@@ -9,7 +9,10 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
-//#include <netinet/in.h>
+
+
+#define BUFFER_SIZE 256
+
 
 
 /* Print All IP Addresses for a resolved address
@@ -77,6 +80,40 @@ int parse_url( char *uri, char **host, char **path )
   return 0;
 }
 
+int http_get(int sockfd, char *host, char *path) {
+  char message_buffer[BUFFER_SIZE];
+
+  snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP 1.1\r\n", path);
+  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+    return -1;
+  }
+
+  snprintf(message_buffer, BUFFER_SIZE, "Host: %s\r\n", host);
+  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+    return -1;
+  }
+
+  snprintf(message_buffer, BUFFER_SIZE, "Connection: Close\r\n\r\n");
+  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int display_response(int sockfd) {
+  // Extra byte for storing \0 so that printf works.
+  // Other printf will run outside the buffer
+  char response_buffer[BUFFER_SIZE + 1];
+
+  ssize_t received = 0;
+
+  while ((received = recv(sockfd, response_buffer, BUFFER_SIZE, 0)) > 0) {
+    response_buffer[received] = '\0';
+    fprintf(stdout, "%s", response_buffer);
+  }
+  fprintf(stdout, "\n");
+}
 
 int main(int argc, char **argv) {
   const char *service = "http";
@@ -142,8 +179,16 @@ int main(int argc, char **argv) {
     exit(4);
   }
 
+  if (http_get(sockfd, host, path) == -1) {
+    fprintf(stderr, "Error : Could send GET HTTP message\n");
+    exit(5);
+  }
+
+  display_response(sockfd);
+
   // Free addrinfo struct
   freeaddrinfo(resolved_host);
+  close(sockfd);
 
   return 0;
 }
