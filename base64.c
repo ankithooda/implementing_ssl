@@ -59,8 +59,53 @@ void base64_encode(char *src, int n, char *dest) {
 
 }
 
-void base64_decode(char *src, int n, char *dest) {
+int base64_decode(char *src, int n, char *dest) {
 
+  // j tracks the position in dest.
+  // i tracks the position in src.
+
+  if ((n % 4) != 0) {
+    return -1;
+  }
+  // 4 bytes of src decodes to 3 bytes of dest.
+  int j = 0;
+  for (int i = 0; i < n; i = i + 4) {
+
+    // Return if invalid base64 code.
+    if (unbase64[src[i]] == -1) {
+      return -1;
+    }
+
+    // 1st byte of dest
+    if ((i + 1) < n) {
+
+      // Return if invalid base64 code.
+      if (unbase64[src[i+1]] == -1) {
+        return -1;
+      }
+      char a = (char)unbase64[src[i]];
+      char b = (char)unbase64[src[i+1]];
+
+      dest[j++] =  ((a & 0xFC) << 2) | ((b & 0x30) >> 4);
+    } else {
+      char a = (char)unbase64[src[i]];
+      dest[j++] = (a & 0xFC) << 2;
+      break;
+    }
+
+    // 2nd byte of dest
+    if ((i + 2) < n) {
+      if (unbase64[src[i+2]] == -1) {
+        return -1;
+      }
+      char a = (char)unbase64[src[i+1]];
+      char b = (char)unbase64[src[i+2]];
+
+      dest[j++] = ((a & 0xF0) << 4) | ((b & 0x3C) >> 2);
+    } else {
+      char a = (char)unbase64[src[i+1]];
+    }
+  }
 }
 
 int main(int argc, char *argv[]) {
