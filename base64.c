@@ -117,16 +117,16 @@ int base64_decode(char *src, int n, char *dest) {
 int main(int argc, char *argv[]) {
 
   if (argc < 2) {
-    fprintf(stderr, "Usage : base64 <data to be decoded>\n");
+    fprintf(stderr, "Usage :\n");
+    fprintf(stderr, "base64 --enc <data to be encoded>\n");
+    fprintf(stderr, "base64 --dec <data to be encoded>\n")
     exit(1);
   }
   int src_len = strlen(argv[1]);
-  int dest_len = 4 * (int)ceil((double)src_len / 3);
-  char *dest = (char*)malloc(dest_len);
+  char *dest = (char*)malloc(20);
 
-  printf("Allocated buffer of len %d\n", dest_len);
-
-  base64_encode(argv[1], src_len, dest);
+  base64_decode(argv[1], src_len, dest);
+  //base64_encode(argv[1], src_len, dest);
   printf("%s\n", argv[1]);
   printf("%s\n", dest);
   free(dest);
