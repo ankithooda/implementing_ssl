@@ -70,42 +70,48 @@ int base64_decode(char *src, int n, char *dest) {
   // 4 bytes of src decodes to 3 bytes of dest.
   int j = 0;
   for (int i = 0; i < n; i = i + 4) {
+    char a, b;
 
     // Return if invalid base64 code.
-    if (unbase64[src[i]] == -1) {
+    if ( (unbase64[src[i + 0]] == -1) ||
+         (unbase64[src[i + 1]] == -1) ||
+         (unbase64[src[i + 2]] == -1) ||
+         (unbase64[src[i + 3]] == -1) ){
       return -1;
     }
 
     // 1st byte of dest
-    if ((i + 1) < n) {
+    a = (char)unbase64[src[i]];
+    b = (char)unbase64[src[i + 1]];
+    dest[j++] =  ((a & 0x3F) << 2) | ((b & 0x30) >> 4);
 
-      // Return if invalid base64 code.
-      if (unbase64[src[i+1]] == -1) {
-        return -1;
-      }
-      char a = (char)unbase64[src[i]];
-      char b = (char)unbase64[src[i+1]];
+    // Check for incorrect padding, before the 2nd byte of dest
+    if (src[i+2] == '=' && src[i+3] != '=') {
+      return -1;
+    }
 
-      dest[j++] =  ((a & 0xFC) << 2) | ((b & 0x30) >> 4);
-    } else {
-      char a = (char)unbase64[src[i]];
-      dest[j++] = (a & 0xFC) << 2;
-      break;
+    // Check for double padding
+    if (src[i+2] == '=' && src[i+3] == '=') {
+      return 0;
     }
 
     // 2nd byte of dest
-    if ((i + 2) < n) {
-      if (unbase64[src[i+2]] == -1) {
-        return -1;
-      }
-      char a = (char)unbase64[src[i+1]];
-      char b = (char)unbase64[src[i+2]];
+    a = (char)unbase64[src[i + 1]];
+    b = (char)unbase64[src[i + 2]];
+    dest[j++] = ((a & 0x0F) << 4) | ((b & 0x3C) >> 2);
 
-      dest[j++] = ((a & 0xF0) << 4) | ((b & 0x3C) >> 2);
-    } else {
-      char a = (char)unbase64[src[i+1]];
+    // Check for single pad
+    if (src[i+3] == '=') {
+      return 0;
     }
+
+    // 3d byte of dest
+    a = (char)unbase64[src[i + 2]];
+    b = (char)unbase64[src[i + 3]];
+    dest[j++] = ((a & 0x03) << 6) | b;
+
   }
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
