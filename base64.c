@@ -114,21 +114,56 @@ int base64_decode(char *src, int n, char *dest) {
   return 0;
 }
 
+void print_help() {
+  fprintf(stderr, "Usage :\n");
+  fprintf(stderr, "base64 encode <data to be encoded>\n");
+  fprintf(stderr, "base64 decode <data to be decoded>\n");
+}
+
+
 int main(int argc, char *argv[]) {
 
-  if (argc < 2) {
-    fprintf(stderr, "Usage :\n");
-    fprintf(stderr, "base64 --enc <data to be encoded>\n");
-    fprintf(stderr, "base64 --dec <data to be encoded>\n")
+  if (argc < 3) {
+    print_help();
     exit(1);
   }
-  int src_len = strlen(argv[1]);
-  char *dest = (char*)malloc(20);
 
-  base64_decode(argv[1], src_len, dest);
-  //base64_encode(argv[1], src_len, dest);
-  printf("%s\n", argv[1]);
-  printf("%s\n", dest);
+  const char *enc = "encode";
+  const char *dec = "decode";
+
+  int flag = 0; // 0 for encode, 1 for decode
+
+  if (strcmp(enc, argv[1]) == 0) {
+    flag = 0;
+  } else if (strcmp(dec, argv[1]) == 0) {
+    flag = 1;
+  } else {
+    print_help();
+    exit(1);
+  }
+
+  int src_len = strlen(argv[2]);
+  int dest_len;
+  char *dest;
+
+  // Encode flag
+  if (flag == 0) {
+    dest_len = 4 * (int)ceil((double)src_len / 3);
+    dest = (char*)malloc(dest_len);
+
+    base64_encode(argv[2], src_len, dest);
+
+  } else {
+    dest_len = 3 * (src_len / 4);
+    dest = (char*)malloc(dest_len);
+
+    if (base64_decode(argv[2], src_len, dest) == -1) {
+      fprintf(stderr, "error in decoding\n");
+      exit(2);
+    }
+  }
+
+  fprintf(stdout, "%s\n", dest);
   free(dest);
   return 0;
 }
