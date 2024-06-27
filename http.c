@@ -80,6 +80,31 @@ int parse_url( char *uri, char **host, char **path )
   return 0;
 }
 
+/*
+
+ */
+int parse_proxy_params(char *proxy_params,
+                       char **proxy_host,
+                       char **proxy_port,
+                       char **proxy_user,
+                       char **proxy_passwd) {
+
+  char *auth_part, *host_part;
+
+  auth_part = strstr(proxy_params, "//");
+
+  if (!auth_part) {
+    return -1;
+  }
+
+  host_part = strstr(auth_part, "@");
+
+  // If there
+  if (host_part) {
+
+  }
+}
+
 int http_get(int sockfd, char *host, char *path) {
   char message_buffer[BUFFER_SIZE];
 
@@ -125,10 +150,23 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  char *host, *path;
+  char *host, *path, *proxy_host, *proxy_user, *proxy_passwd, *requested_url;
+  int proxy_port;
+
   host = NULL;
   path = NULL;
-  if (parse_url(argv[1], &host, &path) != -1) {
+  proxy_host = proxy_user = proxy_passwd = NULL;
+  if (strcmp("-p", argv[1]) == 0) {
+    if (parse_proxy_params(argv[2], &proxy_host, &proxy_port, &proxy_user, &proxy_passwd) != -1) {
+      fprintf(stderr, "Error: Malformed Proxy information\n");
+      exit(2);
+    }
+    requested_url = argv[3];
+  } else {
+    requested_url = argv[1];
+  }
+
+  if (parse_url(requested_url, &host, &path) != -1) {
     printf("Parsed host - %s\n", host);
     printf("Parsed path - %s\n", path);
   } else {
