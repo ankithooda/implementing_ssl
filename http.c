@@ -85,24 +85,45 @@ int parse_url( char *uri, char **host, char **path )
  */
 int parse_proxy_params(char *proxy_params,
                        char **proxy_host,
-                       char **proxy_port,
+                       int *proxy_port,
                        char **proxy_user,
                        char **proxy_passwd) {
 
-  char *auth_part, *host_part;
+  char *current_pos, *auth_part, *host_port;
 
-  auth_part = strstr(proxy_params, "//");
+  current_pos = strstr(proxy_params, "http://");
 
-  if (!auth_part) {
+  // If `http://` not found then  proxy_params is malformed.
+  if ( !current_pos ) {
     return -1;
   }
 
-  host_part = strstr(auth_part, "@");
+  auth_part = strstr(current_pos, "@");
 
-  // If there
-  if (host_part) {
+  if ( auth_part ) {
+    *proxy_passwd = strstr(current_pos, ":");
 
+    // Both username and password have to be supplied.
+    if ( !*proxy_passwd ) {
+      return -1;
+    }
+    *proxy_user = current_pos;
+    *auth_part = '\0';          // Delimits password
+    **proxy_passwd = '\0';      // Delimits user
+    *proxy_passwd++;            // Increment proxy_passwd because it points to ':'
+    current_pos = auth_part++;  // Increment auth_part becaue it points to '@'
+   }
+
+  host_port = strstr(current_pos, ":");
+
+  if ( host_port ) {
+    *host_port = '\0';
+    host_port++;
+    *proxy_port = atoi(host_port);
   }
+
+  *proxy_host = current_pos;
+  return 0;
 }
 
 int http_get(int sockfd, char *host, char *path) {
