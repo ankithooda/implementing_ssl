@@ -91,12 +91,13 @@ int parse_proxy_params(char *proxy_params,
 
   char *current_pos, *auth_part, *host_port;
 
-  current_pos = strstr(proxy_params, "http://");
+  current_pos = strstr(proxy_params, "//");
 
   // If `http://` not found then  proxy_params is malformed.
   if ( !current_pos ) {
     return -1;
   }
+  current_pos = current_pos + 2;
 
   auth_part = strstr(current_pos, "@");
 
@@ -108,17 +109,21 @@ int parse_proxy_params(char *proxy_params,
       return -1;
     }
     *proxy_user = current_pos;
-    *auth_part = '\0';          // Delimits password
-    **proxy_passwd = '\0';      // Delimits user
-    *proxy_passwd++;            // Increment proxy_passwd because it points to ':'
-    current_pos = auth_part++;  // Increment auth_part becaue it points to '@'
+    *auth_part = '\0';            // Delimits password
+    **proxy_passwd = '\0';        // Delimits user
+    ++(*proxy_passwd);            // Increment proxy_passwd because it points to ':'
+    current_pos = ++auth_part;  // Increment auth_part becaue it points to '@'
    }
 
   host_port = strstr(current_pos, ":");
 
   if ( host_port ) {
     *host_port = '\0';
-    host_port++;
+    ++host_port;
+    char *slash_pos = strstr(host_port, "/");
+    if ( slash_pos ) {
+      *slash_pos = '\0';
+    }
     *proxy_port = atoi(host_port);
   }
 
@@ -167,7 +172,7 @@ int display_response(int sockfd) {
 int main(int argc, char **argv) {
   const char *service = "http";
   if (argc < 2) {
-    fprintf(stderr, "Usage : http_client <url>\n");
+    fprintf(stderr, "Usage : http_client -p <optional proxy params> <url>\n");
     exit(1);
   }
 
@@ -178,7 +183,7 @@ int main(int argc, char **argv) {
   path = NULL;
   proxy_host = proxy_user = proxy_passwd = NULL;
   if (strcmp("-p", argv[1]) == 0) {
-    if (parse_proxy_params(argv[2], &proxy_host, &proxy_port, &proxy_user, &proxy_passwd) != -1) {
+    if (parse_proxy_params(argv[2], &proxy_host, &proxy_port, &proxy_user, &proxy_passwd) == -1) {
       fprintf(stderr, "Error: Malformed Proxy information\n");
       exit(2);
     }
