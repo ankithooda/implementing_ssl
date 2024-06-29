@@ -15,19 +15,20 @@
 
 
 
-/* Print All IP Addresses for a resolved address
- */
+/*
+  Print All IP Addresses for a resolved address
+*/
 
 void print_all_addr(struct addrinfo *resolved_host) {
   // Trying all resolved addresses
   char ipstr[INET6_ADDRSTRLEN];
 
 
-  for (struct addrinfo *cur_addr = resolved_host; cur_addr != NULL; cur_addr = cur_addr->ai_next) {
+  for ( struct addrinfo *cur_addr = resolved_host; cur_addr != NULL; cur_addr = cur_addr->ai_next ) {
     void *addr;
     char *ipver;
 
-    if (cur_addr->ai_family == AF_INET) { // IPv4
+    if ( cur_addr->ai_family == AF_INET ) { // IPv4
       struct sockaddr_in *ipv4 = (struct sockaddr_in *)cur_addr->ai_addr;
       addr = &(ipv4->sin_addr);
       ipver = "IPv4";
@@ -58,7 +59,7 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strstr( uri, "//" );
 
-  if (!pos)
+  if ( !pos )
   {
     return -1;
   }
@@ -67,7 +68,7 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strchr( *host, '/' );
 
-  if (!pos)
+  if ( !pos )
   {
     *path = NULL;
   }
@@ -81,11 +82,14 @@ int parse_url( char *uri, char **host, char **path )
 }
 
 /*
+  Parses proxy params of the form http://[user:passwd]<host>[:port]/
 
- */
+  - Auth (user+passwd) and port are optional.
+  - If user is supplied then passwd is mandatory.
+*/
 int parse_proxy_params(char *proxy_params,
                        char **proxy_host,
-                       int *proxy_port,
+                       char **proxy_port,
                        char **proxy_user,
                        char **proxy_passwd) {
 
@@ -93,10 +97,11 @@ int parse_proxy_params(char *proxy_params,
 
   current_pos = strstr(proxy_params, "//");
 
-  // If `http://` not found then  proxy_params is malformed.
+  // If `//` not found then  proxy_params is malformed.
   if ( !current_pos ) {
     return -1;
   }
+  // Increment current_pos to point to the start of string after "//"
   current_pos = current_pos + 2;
 
   auth_part = strstr(current_pos, "@");
@@ -112,10 +117,10 @@ int parse_proxy_params(char *proxy_params,
     *auth_part = '\0';            // Delimits password
     **proxy_passwd = '\0';        // Delimits user
     ++(*proxy_passwd);            // Increment proxy_passwd because it points to ':'
-    current_pos = ++auth_part;  // Increment auth_part becaue it points to '@'
+    current_pos = ++auth_part;    // Increment auth_part because it points to '@'
    }
 
-  host_port = strstr(current_pos, ":");
+  *proxy_port = strstr(current_pos, ":");
 
   if ( host_port ) {
     *host_port = '\0';
@@ -131,30 +136,42 @@ int parse_proxy_params(char *proxy_params,
   return 0;
 }
 
-int http_get(int sockfd, char *host, char *path) {
+/*
+  Makes a http_get call.
+  Supports proxy with BASIC auth.
+*/
+
+int http_get(int sockfd, char *host, char *path, char *proxy_host, int proxy_port, char *proxy_user, char *proxy_passwd) {
   char message_buffer[BUFFER_SIZE];
 
-  snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP/1.1\r\n", path);
+  if ( proxy_host ) {
+    snprintf(message_buffer, BUFFER_SIZE, "GET http://%s/%s", host, path);
+  } else {
+    snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP/1.1\r\n", path);
+  }
   fprintf(stdout, "%s", message_buffer);
-  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+  if ( send(sockfd, message_buffer, strlen(message_buffer), 0) == -1 ) {
     return -1;
   }
 
   snprintf(message_buffer, BUFFER_SIZE, "Host: %s\r\n", host);
   fprintf(stdout, "%s", message_buffer);
-  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+  if ( send(sockfd, message_buffer, strlen(message_buffer), 0) == -1 ) {
     return -1;
   }
 
   snprintf(message_buffer, BUFFER_SIZE, "Connection: close\r\n\r\n");
   fprintf(stdout, "%s", message_buffer);
-  if (send(sockfd, message_buffer, strlen(message_buffer), 0) == -1) {
+  if ( send(sockfd, message_buffer, strlen(message_buffer), 0) == -1 ) {
     return -1;
   }
 
   return 0;
 }
 
+/*
+  Reads a socket and prints the data line by line.
+*/
 int display_response(int sockfd) {
   // Extra byte for storing \0 so that printf works.
   // Other printf will run outside the buffer
@@ -162,7 +179,7 @@ int display_response(int sockfd) {
 
   ssize_t received = 0;
 
-  while ((received = recv(sockfd, response_buffer, BUFFER_SIZE, 0)) > 0) {
+  while ( (received = recv(sockfd, response_buffer, BUFFER_SIZE, 0)) > 0 ) {
     response_buffer[received] = '\0';
     fprintf(stdout, "%s", response_buffer);
   }
@@ -171,7 +188,7 @@ int display_response(int sockfd) {
 
 int main(int argc, char **argv) {
   const char *service = "http";
-  if (argc < 2) {
+  if ( argc < 2 ) {
     fprintf(stderr, "Usage : http_client -p <optional proxy params> <url>\n");
     exit(1);
   }
@@ -182,8 +199,8 @@ int main(int argc, char **argv) {
   host = NULL;
   path = NULL;
   proxy_host = proxy_user = proxy_passwd = NULL;
-  if (strcmp("-p", argv[1]) == 0) {
-    if (parse_proxy_params(argv[2], &proxy_host, &proxy_port, &proxy_user, &proxy_passwd) == -1) {
+  if ( strcmp("-p", argv[1]) == 0 ) {
+    if ( parse_proxy_params(argv[2], &proxy_host, &proxy_port, &proxy_user, &proxy_passwd) == -1 ) {
       fprintf(stderr, "Error: Malformed Proxy information\n");
       exit(2);
     }
@@ -192,7 +209,7 @@ int main(int argc, char **argv) {
     requested_url = argv[1];
   }
 
-  if (parse_url(requested_url, &host, &path) != -1) {
+  if ( parse_url(requested_url, &host, &path) != -1 ) {
     printf("Parsed host - %s\n", host);
     printf("Parsed path - %s\n", path);
   } else {
@@ -210,7 +227,7 @@ int main(int argc, char **argv) {
   struct addrinfo *resolved_host;
   int resolve_code = getaddrinfo(host, service, &hints, &resolved_host);
 
-  if (resolve_code != 0) {
+  if ( resolve_code != 0 ) {
     fprintf(stderr, "Error : Could not resolved hostname - %s\n", gai_strerror(resolve_code));
     exit(3);
   }
@@ -224,12 +241,12 @@ int main(int argc, char **argv) {
 
     sockfd = socket(cur_addr->ai_family, cur_addr->ai_socktype, cur_addr->ai_protocol);
 
-    if (sockfd == -1) {
+    if ( sockfd == -1 ) {
       fprintf(stderr, "Warning : Could not create socket - %s\n", strerror(errno));
       continue;
     }
 
-    if (connect(sockfd, cur_addr->ai_addr, cur_addr->ai_addrlen) == -1) {
+    if ( connect(sockfd, cur_addr->ai_addr, cur_addr->ai_addrlen) == -1 ) {
       fprintf(stderr, "Warning : Could not connect to the host - %s\n", strerror(errno));
       // Before continuing to the next address.
       // Close the socket.
@@ -241,12 +258,12 @@ int main(int argc, char **argv) {
     connected = true;
   }
 
-  if ( connected == false) {
+  if ( connected == false ) {
     fprintf(stderr, "Error : Could not connect to the host\n");
     exit(4);
   }
 
-  if (http_get(sockfd, host, path) == -1) {
+  if ( http_get(sockfd, host, path, proxy_host, proxy_port, proxy_user, proxy_passwd) == -1 ) {
     fprintf(stderr, "Error : Could send GET HTTP message\n");
     exit(5);
   }
