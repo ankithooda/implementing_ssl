@@ -120,19 +120,20 @@ int parse_proxy_params(char *proxy_params,
     current_pos = ++auth_part;    // Increment auth_part because it points to '@'
    }
 
+  *proxy_host = current_pos;
   *proxy_port = strstr(current_pos, ":");
 
-  if ( host_port ) {
-    *host_port = '\0';
-    ++host_port;
-    char *slash_pos = strstr(host_port, "/");
+  if ( *proxy_port ) {
+    **proxy_port = '\0';         // Delimits the proxy_host
+    ++(*proxy_port);              // Increments host_port because it points to ":"
+
+    // Remove trailing hash
+    char *slash_pos = strstr(*proxy_port, "/");
     if ( slash_pos ) {
       *slash_pos = '\0';
     }
-    *proxy_port = atoi(host_port);
   }
 
-  *proxy_host = current_pos;
   return 0;
 }
 
@@ -141,11 +142,11 @@ int parse_proxy_params(char *proxy_params,
   Supports proxy with BASIC auth.
 */
 
-int http_get(int sockfd, char *host, char *path, char *proxy_host, int proxy_port, char *proxy_user, char *proxy_passwd) {
+int http_get(int sockfd, char *host, char *path, char *proxy_host, char *proxy_user, char *proxy_passwd) {
   char message_buffer[BUFFER_SIZE];
 
   if ( proxy_host ) {
-    snprintf(message_buffer, BUFFER_SIZE, "GET http://%s/%s", host, path);
+    snprintf(message_buffer, BUFFER_SIZE, "GET http://%s/%s HTTP/1.1\r\n", host, path);
   } else {
     snprintf(message_buffer, BUFFER_SIZE, "GET /%s HTTP/1.1\r\n", path);
   }
@@ -174,7 +175,7 @@ int http_get(int sockfd, char *host, char *path, char *proxy_host, int proxy_por
 */
 int display_response(int sockfd) {
   // Extra byte for storing \0 so that printf works.
-  // Other printf will run outside the buffer
+  // Otherwise printf will run outside the buffer
   char response_buffer[BUFFER_SIZE + 1];
 
   ssize_t received = 0;
@@ -187,14 +188,13 @@ int display_response(int sockfd) {
 }
 
 int main(int argc, char **argv) {
-  const char *service = "http";
+  const char *default_port = "80";
   if ( argc < 2 ) {
     fprintf(stderr, "Usage : http_client -p <optional proxy params> <url>\n");
     exit(1);
   }
 
-  char *host, *path, *proxy_host, *proxy_user, *proxy_passwd, *requested_url;
-  int proxy_port;
+  char *host, *path, *proxy_host, *proxy_user, *proxy_passwd, *requested_url, *proxy_port;
 
   host = NULL;
   path = NULL;
@@ -225,7 +225,13 @@ int main(int argc, char **argv) {
   hints.ai_flags    = AI_PASSIVE;
 
   struct addrinfo *resolved_host;
-  int resolve_code = getaddrinfo(host, service, &hints, &resolved_host);
+  int resolve_code;
+
+  if ( proxy_host ) {
+    getaddrinfo(proxy_host, proxy_port ? proxy_port : default_port, &hints, &resolved_host);
+  } else {
+    getaddrinfo(host, default_port, &hints, &resolved_host);
+  }
 
   if ( resolve_code != 0 ) {
     fprintf(stderr, "Error : Could not resolved hostname - %s\n", gai_strerror(resolve_code));
@@ -263,7 +269,7 @@ int main(int argc, char **argv) {
     exit(4);
   }
 
-  if ( http_get(sockfd, host, path, proxy_host, proxy_port, proxy_user, proxy_passwd) == -1 ) {
+  if ( http_get(sockfd, host, path, proxy_host, proxy_user, proxy_passwd) == -1 ) {
     fprintf(stderr, "Error : Could send GET HTTP message\n");
     exit(5);
   }
