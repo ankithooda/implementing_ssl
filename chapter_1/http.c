@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
-
+#include "base64_lib.h"
 
 #define BUFFER_SIZE 256
 
@@ -161,6 +161,33 @@ int http_get(int sockfd, char *host, char *path, char *proxy_host, char *proxy_u
     return -1;
   }
 
+  if ( proxy_user ) {
+    int a = strlen(proxy_user);
+    int b = strlen(proxy_passwd);
+    int creds_len = strlen(proxy_user) + strlen(proxy_passwd) + 2;
+    int auth_len = ((creds_len * 4 ) / 3) + 1;
+
+    char *creds = (char *)malloc(creds_len);
+    char *auth = (char *)malloc(auth_len);
+
+    snprintf( creds, creds_len, "%s:%s", proxy_user, proxy_passwd );
+
+    printf("CREDS %s\n", creds);
+
+    base64_encode( creds, creds_len, auth);
+
+    snprintf(message_buffer, BUFFER_SIZE, "Proxy-Authorization: BASIC %s\r\n", auth);
+
+    free(creds);
+    free(auth);
+
+    fprintf(stdout, "%s", message_buffer);
+    if ( send(sockfd, message_buffer, strlen(message_buffer), 0 ) == -1) {
+      return -1;
+    }
+
+  }
+
   snprintf(message_buffer, BUFFER_SIZE, "Connection: close\r\n\r\n");
   fprintf(stdout, "%s", message_buffer);
   if ( send(sockfd, message_buffer, strlen(message_buffer), 0) == -1 ) {
@@ -204,6 +231,10 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Error: Malformed Proxy information\n");
       exit(2);
     }
+    printf("Parsed Proxy Host - %s\n", proxy_host);
+    printf("Parsed Proxy Port - %s\n", proxy_port);
+    printf("Parsed Proxy User - %s\n", proxy_user);
+    printf("Parsed Proxy Pass - %s\n", proxy_passwd);
     requested_url = argv[3];
   } else {
     requested_url = argv[1];
