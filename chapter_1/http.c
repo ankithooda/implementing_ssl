@@ -59,8 +59,7 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strstr( uri, "//" );
 
-  if ( !pos )
-  {
+  if ( !pos ) {
     return -1;
   }
 
@@ -68,12 +67,9 @@ int parse_url( char *uri, char **host, char **path )
 
   pos = strchr( *host, '/' );
 
-  if ( !pos )
-  {
+  if ( !pos ) {
     *path = NULL;
-  }
-  else
-  {
+  } else {
     *path = pos + 1;
     *pos = '\0';
   }
@@ -145,6 +141,10 @@ int parse_proxy_params(char *proxy_params,
 int http_get(int sockfd, char *host, char *path, char *proxy_host, char *proxy_user, char *proxy_passwd) {
   char message_buffer[BUFFER_SIZE];
 
+  // If path is null, set it to an empty string
+  if ( path == NULL ) {
+    path = "";
+  }
   if ( proxy_host ) {
     snprintf(message_buffer, BUFFER_SIZE, "GET http://%s/%s HTTP/1.1\r\n", host, path);
   } else {
@@ -231,26 +231,19 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Error: Malformed Proxy information\n");
       exit(2);
     }
-    printf("Parsed Proxy Host - %s\n", proxy_host);
-    printf("Parsed Proxy Port - %s\n", proxy_port);
-    printf("Parsed Proxy User - %s\n", proxy_user);
-    printf("Parsed Proxy Pass - %s\n", proxy_passwd);
     requested_url = argv[3];
   } else {
     requested_url = argv[1];
   }
 
-  if ( parse_url(requested_url, &host, &path) != -1 ) {
-    printf("Parsed host - %s\n", host);
-    printf("Parsed path - %s\n", path);
-  } else {
+  if ( parse_url( requested_url, &host, &path ) == -1 ) {
     fprintf(stderr, "Error : Malformed URL\n");
     exit(2);
   }
 
   struct addrinfo hints;
 
-  memset(&hints, 0, sizeof(hints));
+  memset( &hints, 0, sizeof( hints ) );
   hints.ai_family   = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags    = AI_PASSIVE;
@@ -300,7 +293,7 @@ int main(int argc, char **argv) {
     exit(4);
   }
 
-  if ( http_get(sockfd, host, path, proxy_host, proxy_user, proxy_passwd) == -1 ) {
+  if ( http_get( sockfd, host, path, proxy_host, proxy_user, proxy_passwd ) == -1 ) {
     fprintf(stderr, "Error : Could send GET HTTP message\n");
     exit(5);
   }
