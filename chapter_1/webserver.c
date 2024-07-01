@@ -7,46 +7,55 @@
 #include <unistd.h>
 
 #define INCOMING_QUEUE_SIZE 3
+#define BUFFER_SIZE 256
 
 void _exit_with_error(char *msg, int code) {
-  //fprintf(stderr, "%s\n", msg);
-  perror(msg);
-  exit(code);
+  perror( msg );
+  exit( code );
+}
+
+void send_failure_message(int socket) {
+  char *out_buffer = (char *)malloc( BUFFER_SIZE );
+  sprintf( out_buffer, "HTTP/1.1 500 Error Occurred\r\n\r\n" );
+
+  if ( send( socket, out_buffer, strlen( out_buffer ), 0 ) < strlen( out_buffer ) ) {
+    perror("Could not send reply\n");
+  }
+  free(out_buffer);
+  return;
+}
+
+void send_success_message(int socket) {
+  char *out_buffer = (char *)malloc( BUFFER_SIZE );
+  sprintf( out_buffer, "HTTP/1.1 200 Success\r\nConnection: Close\r\n\
+Content-Type:text/html\r\n\
+\r\n<html><head><title>Test Page</title></head><body>Nothing here</body></html>\
+\r\n" );
+
+  if ( send( socket, out_buffer, strlen(out_buffer), 0 ) < strlen( out_buffer ) ) {
+    perror( "Could not send reply" );
+  }
+  free(out_buffer);
+  return;
 }
 
 void process_http_request(int server_socket) {
   // Read the line from the connection
 
-  int bufsize = 256;
-  char *in_buffer = (char *)malloc( bufsize );
-  char *out_buffer = (char *)malloc( bufsize );
+  char *in_buffer = (char *)malloc( BUFFER_SIZE );
   int bytes_read;
 
-  bytes_read = recv( server_socket, in_buffer, bufsize, 0 );
+  bytes_read = recv( server_socket, in_buffer, BUFFER_SIZE, 0 );
 
-  if (bytes_read == -1) {
-    sprintf( out_buffer, "HTTP/1.1 500 Error Occurred\r\n\r\n" );
-
-    if ( send( server_socket, out_buffer, strlen(out_buffer), 0 ) < strlen( out_buffer ) ) {
-      fprintf(stderr, "Could not send reply\n");
-      free(in_buffer);
-      free(out_buffer);
-      return;
-    }
-
+  if ( strncmp( in_buffer, "GET", 3 ) == -1) {
+    send_failure_message( server_socket );
+  } else if (bytes_read == -1) {
+    send_failure_message( server_socket );
   } else {
-    sprintf( out_buffer, "HTTP/1.1 200 Success\r\nConnection: Close\r\n\
-Content-Type:text/html\r\n\
-\r\n<html><head><title>Test Page</title></head><body>Nothing here</body></html>\
-\r\n" );
-
-    if ( send(server_socket, out_buffer, strlen(out_buffer), 0 ) < strlen( out_buffer ) ) {
-      fprintf(stderr, "Could not send reply\n");
-      free(in_buffer);
-      free(out_buffer);
-      return;
-    }
+    send_success_message( server_socket );
   }
+  free(in_buffer);
+  return;
 }
 
 int main(int argc, char *argv[]) {
