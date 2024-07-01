@@ -12,6 +12,41 @@ void _exit_with_error(char *msg, int code) {
   exit(code);
 }
 
+void process_http_request(int server_socket) {
+  // Read the line from the connection
+
+  int bufsize = 256;
+  char *in_buffer = (char *)malloc( bufsize );
+  char *out_buffer = (char *)malloc( bufsize );
+  int bytes_read;
+
+  bytes_read = recv( server_socket, in_buffer, bufsize, 0 );
+
+  if (bytes_read == -1) {
+    sprintf( out_buffer, "HTTP/1.1 500 Error Occurred\r\n\r\n" );
+
+    if ( send( server_socket, out_buffer, strlen(out_buffer), 0 ) < strlen( out_buffer ) ) {
+      fprintf(stderr, "Could not send reply\n");
+      free(in_buffer);
+      free(out_buffer);
+      return;
+    }
+
+  } else {
+    sprintf( out_buffer, "HTTP/1.1 200 Success\r\nConnection: Close\r\n\
+Content-Type:text/html\r\n\
+\r\n<html><head><title>Test Page</title></head><body>Nothing here</body></html>\
+\r\n" );
+
+    if ( send(server_socket, out_buffer, strlen(out_buffer), 0 ) < strlen( out_buffer ) ) {
+      fprintf(stderr, "Could not send reply\n");
+      free(in_buffer);
+      free(out_buffer);
+      return;
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   char *port;
   if (argc == 2) {
@@ -46,6 +81,7 @@ int main(int argc, char *argv[]) {
     if (incoming_socket == -1) {
       _exit_with_error( "Error: Could not accept", 3);
     }
+    process_http_request(incoming_socket);
   }
   free(res);
   return 0;
