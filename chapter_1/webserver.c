@@ -4,11 +4,13 @@
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #define INCOMING_QUEUE_SIZE 3
 
 void _exit_with_error(char *msg, int code) {
-  fprintf(stderr, "%s\n", msg);
+  //fprintf(stderr, "%s\n", msg);
+  perror(msg);
   exit(code);
 }
 
@@ -79,9 +81,10 @@ int main(int argc, char *argv[]) {
     incoming_addr_len = sizeof(incoming_addr);
     incoming_socket = accept(server_socket, (struct sockaddr *)&incoming_addr, &incoming_addr_len);
     if (incoming_socket == -1) {
-      _exit_with_error( "Error: Could not accept", 3);
+      _exit_with_error( "Error: Could not accept", 3 );
     }
-    process_http_request(incoming_socket);
+    process_http_request( incoming_socket );
+    close( incoming_socket );
   }
   free(res);
   return 0;
