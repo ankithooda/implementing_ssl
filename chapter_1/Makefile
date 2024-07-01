@@ -4,6 +4,6 @@ http_client:
 base64:
 	mkdir -p bin && gcc -g -o bin/base64 base64.c -lm
 
-huge:
-	mkdir -p bin && gcc -g -o bin/huge huge.c
+webserver:
+	mkdir -p bin && gcc -g -o bin/webserver webserver.c
 
