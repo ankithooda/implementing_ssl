@@ -88,10 +88,9 @@ static void rol( unsigned char *target, int c ) {
     target[1] = (target[1] << 1) | ((target[2] & 0x80) >> 7);
     target[2] = (target[2] << 1) | ((target[3] & 0x80) >> 7);
 
-    right_carry = (target[3] >> 3) & 0x08;
+    right_carry = (target[3] & 0x08) >> 3;
 
-    target[3] = (target[3] << 1) | ((target[4] & 0x80) >> 7);
-    target[3] = target[3] | (left_carry >> 3);
+    target[3] = (((target[3] << 1) | ((target[4] & 0x80) >> 7)) & ~0x10) | left_carry;
 
     target[4] = (target[4] << 1) | ((target[5] & 0x80) >> 7);
     target[5] = (target[5] << 1) | ((target[6] & 0x80) >> 7);
@@ -113,9 +112,6 @@ void print_hex_data( unsigned char *data, int len ) {
   printf("\n");
 }
 
-static void des_block_operate() {
-
-}
 
 int main() {
 
@@ -124,18 +120,21 @@ int main() {
   unsigned char *enc_text   = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
   unsigned char *final_text = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
 
-  plaintext[0] = 97;
-  plaintext[1] = 110;
-  plaintext[2] = 107;
-  plaintext[3] = 105;
-  plaintext[4] = 104;
-  plaintext[5] = 111;
-  plaintext[6] = 111;
-  //plaintext[7] = 100;
+  plaintext[0] = 0x7A;
+  plaintext[1] = 0xBC;
+  plaintext[2] = 0xDE;
+  plaintext[3] = 0xF8;
+  plaintext[4] = 0xFF;
+  plaintext[5] = 0xFF;
+  plaintext[6] = 0xFF;
+  //plaintext[7] = 0xFF;
 
   print_hex_data(plaintext, 7);
   rol(plaintext, 1);
   print_hex_data(plaintext, 7);
+
+  // rol_1(plaintext, 1);
+
 
   /* permute( enc_text, plaintext, initial_permute_table, block_len ); */
 
