@@ -15,6 +15,8 @@
 #define PC1_KEY_SIZE           7 // Initial key permutation (56-bits)
 #define SUBKEY_SIZE            6 // 48-bit subkeys
 
+typedef enum {OP_ENCRYPT, OP_DECRYPT} op_type;
+
 static void xor( unsigned char *target, const unsigned char *src, int len )
 {
   while ( len-- )
@@ -205,7 +207,8 @@ static void ror( unsigned char *target) {
 
 static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
                                unsigned char ciphertext[ DES_BLOCK_SIZE ],
-                               const unsigned char key[ DES_KEY_SIZE ]
+                               const unsigned char key[ DES_KEY_SIZE ],
+                               op_type operation
                                ) {
 
 
@@ -231,14 +234,22 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     // Key Mixing
     // Rotate both halves once using the specialized rol function
     // which rotates the two 28-bits independently.
-    rol( pc1_key );
-
     // Round numbers are 1-indexed
     // For Rounds 1, 2, 9 and 16 there is only 1 rotation
     // For all other rounds there are 2 rotations
 
-    if ( (round != 1) || (round != 2) || (round != 9) || (round != 16) ) {
+    if ( operation == OP_ENCRYPT ) {
       rol( pc1_key );
+
+      if ( (round != 1) || (round != 2) || (round != 9) || (round != 16) ) {
+        rol( pc1_key );
+      }
+    } else {
+      ror( pc1_key );
+
+      if ( (round != 1) || (round != 2) || (round != 9) || (round != 16) ) {
+        ror( pc1_key );
+      }
     }
 
     // Permute the pc1_key to create subkey for this round
@@ -354,29 +365,41 @@ int main() {
 
   int block_len = 8;
   unsigned char *plaintext  = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
+  unsigned char *key        = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
   unsigned char *enc_text   = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
   unsigned char *final_text = (unsigned char *)malloc( block_len * sizeof( unsigned char ) );
 
-  plaintext[0] = 0x7A;
-  plaintext[1] = 0xBC;
-  plaintext[2] = 0xDE;
-  plaintext[3] = 0xF8;
-  plaintext[4] = 0xFF;
-  plaintext[5] = 0xFF;
-  plaintext[6] = 0xFF;
-  plaintext[7] = 0xFF;
+  plaintext = "ANKTHOOD";
+  key = "PASSCODE";
 
-  print_hex_data(plaintext, 7);
-  ror(plaintext);
-  print_hex_data(plaintext, 7);
+  des_block_operate(plaintext, enc_text, key, OP_ENCRYPT);
 
-  // S-box logic
-  char a = 0x6C;
+  print_hex_data(plaintext, block_len);
+  print_hex_data(enc_text, block_len);
 
-  int i = ( (a >> 2) & 0x1) | ((a >> 6 ) & 0x2) & 0x03;
-  int j = ( a >> 3 ) & 0x0F;
-  int k = s_box[0][i][j];
-  printf("S-Box %d,%d,%d\n", i, j, k);
+  des_block_operate(enc_text, final_text, key, OP_DECRYPT);
+  print_hex_data(final_text, block_len);
+
+  /* plaintext[0] = 0x7A; */
+  /* plaintext[1] = 0xBC; */
+  /* plaintext[2] = 0xDE; */
+  /* plaintext[3] = 0xF8; */
+  /* plaintext[4] = 0xFF; */
+  /* plaintext[5] = 0xFF; */
+  /* plaintext[6] = 0xFF; */
+  /* plaintext[7] = 0xFF; */
+
+  /* print_hex_data(plaintext, 7); */
+  /* ror(plaintext); */
+  /* print_hex_data(plaintext, 7); */
+
+  /* // S-box logic */
+  /* char a = 0x6C; */
+
+  /* int i = ( (a >> 2) & 0x1) | ((a >> 6 ) & 0x2) & 0x03; */
+  /* int j = ( a >> 3 ) & 0x0F; */
+  /* int k = s_box[0][i][j]; */
+  /* printf("S-Box %d,%d,%d\n", i, j, k); */
 
 
   return 0;
