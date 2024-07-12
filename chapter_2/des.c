@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define GET_BIT( array, bit ) \
     ( array[ ( int ) ( bit / 8 ) ] & ( 0x80 >> ( bit % 8 ) ) )
@@ -179,6 +180,29 @@ static void rol( unsigned char *target) {
   target[6] = (target[6] << 1) | right_carry;
 }
 
+// Rotates right the 56-bit key by treating it as two 26-bit chunks
+static void ror( unsigned char *target) {
+  int left_carry, right_carry;
+
+  // Calculate both carries first
+  left_carry  = ( target[ 3 ] >> 4 ) & 0x01;
+  right_carry = target[ 6 ] & 0x01;
+
+  // Go from 4th left-half byte to 1st byte
+  target[ 3 ] = (( target[ 3 ] >> 1 ) & 0x70 ) | (( target[ 2 ] << 7 ) & 0x80 ) | ( target[ 3 ] & 0x0F );
+  target[ 2 ] = (( target[ 2 ] >> 1 ) & 0x7F ) | ( target[ 1 ] & 0x01 );
+  target[ 1 ] = (( target[ 1 ] >> 1 ) & 0x7F ) | ( target[ 0 ] & 0x01 );
+  target[ 0 ] = (( target[ 0 ] >> 1 ) & 0x7F ) | (( left_carry << 7 ) & 0x80 );
+
+  // Go from 7th byte to 4th right-half byte
+  target[ 6 ] = (( target[ 6 ] >> 1 ) & 0x7F ) | ( target[ 5 ] & 0x01 );
+  target[ 5 ] = (( target[ 5 ] >> 1 ) & 0x7F ) | ( target[ 4 ] & 0x01 );
+  target[ 4 ] = (( target[ 4 ] >> 1 ) & 0x7F ) | ( target[ 3 ] & 0x01 );
+  target[ 3 ] = (( target[ 3 ] >> 1 ) & 0x07 ) | (( right_carry << 3 ) & 0x08 ) | ( target[ 3 ] & 0xF0 );
+
+}
+
+
 static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
                                unsigned char ciphertext[ DES_BLOCK_SIZE ],
                                const unsigned char key[ DES_KEY_SIZE ]
@@ -191,6 +215,7 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
   unsigned char subkey[ SUBKEY_SIZE ];
   unsigned char substituted_block[ DES_BLOCK_SIZE ];
   unsigned char post_substitution_pbox[ DES_BLOCK_SIZE / 2 ]; // Target of the permutation after s-box
+  unsigned char swap_buffer[ DES_BLOCK_SIZE / 2 ];
 
   // Initial permutation of the plaintext
   permute( ip_block, plaintext, initial_permute_table, DES_BLOCK_SIZE );
@@ -289,9 +314,25 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     // Now substituted_block contains the 32-bits of data
     permute(post_substitution_pbox, substituted_block, p_table, DES_BLOCK_SIZE / 2);
 
-    // Xor the two halves and swap
+    // TODO: Verify post impl
+    // Current Impl based on the book
+    // Copy original R into L
+    // Copy original L into swap_buffer
+    // Xor swap and post_substitution_pbox
 
+    memcpy( (void *)swap_buffer, (void *)ip_block, DES_BLOCK_SIZE / 2 );
+    memcpy( (void *)ip_block, (void *)ip_block + 4, DES_BLOCK_SIZE / 2 );
+    xor( swap_buffer, post_substitution_pbox, DES_BLOCK_SIZE / 2 );
+    memcpy( (void *)ip_block + 4, swap_buffer, DES_BLOCK_SIZE / 2 );
   }
+
+  // Final Swap
+  memcpy( (void *)swap_buffer, (void *)ip_block, DES_BLOCK_SIZE / 2 );
+  memcpy( (void *)ip_block, (void *)ip_block + 4, DES_BLOCK_SIZE / 2 );
+  memcpy( (void *)ip_block + 4, (void *)ip_block, DES_BLOCK_SIZE / 2 );
+
+  // Final permutation, reverses the original permutation
+  permute( ciphertext, ip_block, final_permute_table, DES_BLOCK_SIZE );
 }
 
 
@@ -326,7 +367,7 @@ int main() {
   plaintext[7] = 0xFF;
 
   print_hex_data(plaintext, 7);
-  rol(plaintext);
+  ror(plaintext);
   print_hex_data(plaintext, 7);
 
   // S-box logic
