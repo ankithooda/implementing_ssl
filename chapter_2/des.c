@@ -190,14 +190,14 @@ static void ror( unsigned char *target) {
 
   // Go from 4th left-half byte to 1st byte
   target[ 3 ] = (( target[ 3 ] >> 1 ) & 0x70 ) | (( target[ 2 ] << 7 ) & 0x80 ) | ( target[ 3 ] & 0x0F );
-  target[ 2 ] = (( target[ 2 ] >> 1 ) & 0x7F ) | ( target[ 1 ] & 0x01 );
-  target[ 1 ] = (( target[ 1 ] >> 1 ) & 0x7F ) | ( target[ 0 ] & 0x01 );
+  target[ 2 ] = (( target[ 2 ] >> 1 ) & 0x7F ) | (( target[ 1 ] << 7 ) & 0x80 );
+  target[ 1 ] = (( target[ 1 ] >> 1 ) & 0x7F ) | (( target[ 0 ] << 7 ) & 0x80 );
   target[ 0 ] = (( target[ 0 ] >> 1 ) & 0x7F ) | (( left_carry << 7 ) & 0x80 );
 
   // Go from 7th byte to 4th right-half byte
-  target[ 6 ] = (( target[ 6 ] >> 1 ) & 0x7F ) | ( target[ 5 ] & 0x01 );
-  target[ 5 ] = (( target[ 5 ] >> 1 ) & 0x7F ) | ( target[ 4 ] & 0x01 );
-  target[ 4 ] = (( target[ 4 ] >> 1 ) & 0x7F ) | ( target[ 3 ] & 0x01 );
+  target[ 6 ] = (( target[ 6 ] >> 1 ) & 0x7F ) | (( target[ 5 ] << 7 ) & 0x80 );
+  target[ 5 ] = (( target[ 5 ] >> 1 ) & 0x7F ) | (( target[ 4 ] << 7 ) & 0x80 );
+  target[ 4 ] = (( target[ 4 ] >> 1 ) & 0x7F ) | (( target[ 3 ] << 7 ) & 0x01 );
   target[ 3 ] = (( target[ 3 ] >> 1 ) & 0x07 ) | (( right_carry << 3 ) & 0x08 ) | ( target[ 3 ] & 0xF0 );
 
 }
