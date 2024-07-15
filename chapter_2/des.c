@@ -89,8 +89,18 @@ static const int expansion_table[] = {
   16, 17, 18, 19, 20, 21,
   20, 21, 22, 23, 24, 25,
   24, 25, 26, 27, 28, 29,
-  28, 29, 30, 31, 31,  1,
+  28, 29, 30, 31, 32,  1,
 };
+/* static const int expansion_table[] = { */
+/*        32,  1,  2,  3,  4,  5, */
+/*        4,  5,  6,  7,  8,  9, */
+/*        8,  9, 10, 11, 12, 13, */
+/*        12, 13, 14, 15, 16, 17, */
+/*        16, 17, 18, 19, 20, 21, */
+/*        20, 21, 22, 23, 24, 25, */
+/*        24, 25, 26, 27, 28, 29, */
+/*        28, 29, 30, 31, 32,  1 }; */
+
 
 static const int p_table[] = {
   16,  7, 20, 21,
@@ -216,9 +226,17 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
   unsigned char pc1_key[ PC1_KEY_SIZE ];                 // Initial permuted key (56-bits)
   unsigned char expanded_block[ EXPANSION_BLOCK_SIZE ];  // Holds the expanded 48-bits
   unsigned char subkey[ SUBKEY_SIZE ];
-  unsigned char substituted_block[ DES_BLOCK_SIZE ];
+  unsigned char substituted_block[ DES_BLOCK_SIZE / 2];
   unsigned char post_substitution_pbox[ DES_BLOCK_SIZE / 2 ]; // Target of the permutation after s-box
   unsigned char swap_buffer[ DES_BLOCK_SIZE / 2 ];
+
+  memset( ip_block, 0, DES_BLOCK_SIZE );
+  memset( pc1_key, 0 , PC1_KEY_SIZE );
+  memset( expanded_block, 0, EXPANSION_BLOCK_SIZE );
+  memset( subkey, 0 , SUBKEY_SIZE );
+  memset( substituted_block, 0 , DES_BLOCK_SIZE );
+  memset( post_substitution_pbox, 0, DES_BLOCK_SIZE / 2 );
+  memset( swap_buffer, 0, DES_BLOCK_SIZE / 2 );
 
   // Initial permutation of the plaintext
   permute( ip_block, plaintext, initial_permute_table, DES_BLOCK_SIZE );
@@ -241,19 +259,21 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     if ( operation == OP_ENCRYPT ) {
       rol( pc1_key );
 
-      if ( (round != 1) || (round != 2) || (round != 9) || (round != 16) ) {
+      if ( (round != 1) && (round != 2) && (round != 9) && (round != 16) ) {
         rol( pc1_key );
-      }
-    } else {
-      ror( pc1_key );
-
-      if ( (round != 1) || (round != 2) || (round != 9) || (round != 16) ) {
-        ror( pc1_key );
       }
     }
 
     // Permute the pc1_key to create subkey for this round
     permute( subkey, pc1_key, key_permutation_2, SUBKEY_SIZE );
+
+    if ( operation == OP_DECRYPT ) {
+      ror( pc1_key );
+
+      if ( (round != 1) && (round != 2) && (round != 9) && (round != 16) ) {
+        ror( pc1_key );
+      }
+    }
 
     // XOR the expanded block and subkey for this round.
     // expanded_block is right half of ip_table expanded to 48-bits
@@ -269,6 +289,13 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     // Each chunk is then used to consult one of the 8 S-box and get
     // 4-bits, resulting in substituted_block to be 32-bits
 
+    /* expanded_block[0] = 0x61; */
+    /* expanded_block[1] = 0x17; */
+    /* expanded_block[2] = 0xBA; */
+    /* expanded_block[3] = 0x86; */
+    /* expanded_block[4] = 0x65; */
+    /* expanded_block[5] = 0x27; */
+
     unsigned char curr_byte; // Holds the 6-bits input required for the S-box
     int i, j;
     i = j = 0;          // i, j indices in the S-box
@@ -276,50 +303,50 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     // First 6-bits of expanded_block[0]
     curr_byte = ( expanded_block[ 0 ] >> 2 ) & 0x3F;
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4 ) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
+    j    = ( curr_byte >> 1 ) & 0x0F;
     substituted_block[ 0 ] = ( s_box[ 0 ][ i ][ j ] << 4 ) & 0xF0;
 
     // Remaining 2-bits of expanded_block[0] and first 4-bits of expanded_block[1]
     curr_byte = (( expanded_block[ 0 ] << 4 ) & 0x30 ) | (( expanded_block[ 1 ] >> 4 ) & 0x0F );
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 0 ] |= s_box[ 0 ][ i ][ j ] & 0x0F;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 0 ] |= s_box[ 1 ][ i ][ j ] & 0x0F;
 
     // Remaining 4-bits of expanded_block[1] and first 2-bits of expanded_block[2]
     curr_byte = (( expanded_block[ 1 ] << 2 ) & 0x3C ) | (( expanded_block[ 2 ] >> 6 ) & 0x03 );
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4 ) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 1 ] = ( s_box[ 0 ][ i ][ j ] << 4 ) & 0xF0;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 1 ] = ( s_box[ 2 ][ i ][ j ] << 4 ) & 0xF0;
 
     // Remaining 6-bits of expanded_block[2]
     curr_byte = expanded_block[ 2 ] & 0x3F;
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4) & 0x02);
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 1 ] |= s_box[ 0 ][ i ][ j ] & 0x0F;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 1 ] |= s_box[ 3 ][ i ][ j ] & 0x0F;
 
     // First 6-bits of expanded_block[3]
     curr_byte = ( expanded_block[ 3 ] >> 2 ) & 0x3F;
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4 ) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 2 ] = ( s_box[ 0 ][ i ][ j ] << 4 ) & 0xF0;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 2 ] = ( s_box[ 4 ][ i ][ j ] << 4 ) & 0xF0;
 
     // Remaining 2-bits of expanded_block[3] and first 4-bits of expanded_block[4]
     curr_byte = (( expanded_block[ 3 ] << 4 ) & 0x30 ) | (( expanded_block[ 4 ] >> 4 ) & 0x0F );
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 2 ] |= s_box[ 0 ][ i ][ j ] & 0x0F;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 2 ] |= s_box[ 5 ][ i ][ j ] & 0x0F;
 
     // Remaining 4-bits of expanded_block[4] and first 2-bits of expanded_block[5]
     curr_byte = (( expanded_block[ 4 ] << 2 ) & 0x3C ) | (( expanded_block[ 5 ] >> 6 ) & 0x03 );
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4 ) & 0x02 );
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 3 ] = ( s_box[ 0 ][ i ][ j ] << 4 ) & 0xF0;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 3 ] = ( s_box[ 6 ][ i ][ j ] << 4 ) & 0xF0;
 
     // Remaining 6-bits of expanded_block[3]
     curr_byte = expanded_block[ 5 ] & 0x3F;
     i    = ( curr_byte & 0x01 ) | (( curr_byte >> 4) & 0x02);
-    j    = ( curr_byte >> 2 ) & 0x0F;
-    substituted_block[ 3 ] |= s_box[ 0 ][ i ][ j ] & 0x0F;
+    j    = ( curr_byte >> 1 ) & 0x0F;
+    substituted_block[ 3 ] |= s_box[ 7 ][ i ][ j ] & 0x0F;
 
 
     // Now substituted_block contains the 32-bits of data
@@ -340,7 +367,7 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
   // Final Swap
   memcpy( (void *)swap_buffer, (void *)ip_block, DES_BLOCK_SIZE / 2 );
   memcpy( (void *)ip_block, (void *)ip_block + 4, DES_BLOCK_SIZE / 2 );
-  memcpy( (void *)ip_block + 4, (void *)ip_block, DES_BLOCK_SIZE / 2 );
+  memcpy( (void *)ip_block + 4, (void *)swap_buffer, DES_BLOCK_SIZE / 2 );
 
   // Final permutation, reverses the original permutation
   permute( ciphertext, ip_block, final_permute_table, DES_BLOCK_SIZE );
