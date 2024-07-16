@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -264,9 +265,6 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
       }
     }
 
-    // Permute the pc1_key to create subkey for this round
-    permute( subkey, pc1_key, key_permutation_2, SUBKEY_SIZE );
-
     if ( operation == OP_DECRYPT ) {
       ror( pc1_key );
 
@@ -274,6 +272,9 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
         ror( pc1_key );
       }
     }
+
+    // Permute the pc1_key to create subkey for this round
+    permute( subkey, pc1_key, key_permutation_2, SUBKEY_SIZE );
 
     // XOR the expanded block and subkey for this round.
     // expanded_block is right half of ip_table expanded to 48-bits
@@ -288,13 +289,6 @@ static void des_block_operate( const unsigned char plaintext[ DES_BLOCK_SIZE ],
     // expanded block is 48-bits, it is processed in 8 chunks of 6-bits
     // Each chunk is then used to consult one of the 8 S-box and get
     // 4-bits, resulting in substituted_block to be 32-bits
-
-    /* expanded_block[0] = 0x61; */
-    /* expanded_block[1] = 0x17; */
-    /* expanded_block[2] = 0xBA; */
-    /* expanded_block[3] = 0x86; */
-    /* expanded_block[4] = 0x65; */
-    /* expanded_block[5] = 0x27; */
 
     unsigned char curr_byte; // Holds the 6-bits input required for the S-box
     int i, j;
